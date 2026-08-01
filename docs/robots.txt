@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://Jose-ai-run.github.io/aire-latam/sitemap.xml
+Sitemap: https://jose-ai-run.github.io/aire-latam/sitemap.xml
