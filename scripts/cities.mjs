@@ -1,24 +1,76 @@
 // Ciudades cubiertas por AireLatam. Agregar una ciudad = agregar una línea aquí.
 // slug: usado en la URL. lat/lon: usados para pedir la estación AQICN más cercana.
+//
+// IMPORTANTE: generate.mjs descarta automáticamente cualquier ciudad cuya estación
+// real más cercana esté a más de 50km (ver MAX_STATION_DISTANCE_KM), para no publicar
+// el dato de otra ciudad como si fuera local. Es seguro agregar candidatos aquí aunque
+// no se sepa con certeza si tienen cobertura: si no la tienen, simplemente se omiten
+// (se ve una advertencia en el log de la Action, no rompe nada).
+//
+// Países con red de monitoreo densa confirmada: México, Colombia, Chile, Perú,
+// Ecuador (zona Quito) y Brasil (sobre todo estado de São Paulo). El resto de países
+// de la lista original tiene cobertura muy escasa o nula en la red pública de AQICN;
+// se dejan igual por si se agregan estaciones nuevas en el futuro.
 export const CITIES = [
+  // --- México (buena cobertura) ---
   { slug: "ciudad-de-mexico", name: "Ciudad de México", country: "México", lat: 19.4326, lon: -99.1332 },
   { slug: "guadalajara", name: "Guadalajara", country: "México", lat: 20.6597, lon: -103.3496 },
   { slug: "monterrey", name: "Monterrey", country: "México", lat: 25.6866, lon: -100.3161 },
+  { slug: "puebla", name: "Puebla", country: "México", lat: 19.0414, lon: -98.2063 },
+  { slug: "toluca", name: "Toluca", country: "México", lat: 19.2926, lon: -99.6568 },
+  { slug: "leon", name: "León", country: "México", lat: 21.1619, lon: -101.6921 },
+  { slug: "mexicali", name: "Mexicali", country: "México", lat: 32.6245, lon: -115.4523 },
+  { slug: "tijuana", name: "Tijuana", country: "México", lat: 32.5149, lon: -117.0382 },
+  { slug: "ciudad-juarez", name: "Ciudad Juárez", country: "México", lat: 31.6904, lon: -106.4245 },
+  { slug: "aguascalientes", name: "Aguascalientes", country: "México", lat: 21.8853, lon: -102.2916 },
+  { slug: "queretaro", name: "Querétaro", country: "México", lat: 20.5888, lon: -100.3899 },
+  { slug: "merida-mx", name: "Mérida", country: "México", lat: 20.9674, lon: -89.5926 },
+
+  // --- Colombia (buena cobertura) ---
   { slug: "bogota", name: "Bogotá", country: "Colombia", lat: 4.711, lon: -74.0721 },
   { slug: "medellin", name: "Medellín", country: "Colombia", lat: 6.2442, lon: -75.5812 },
   { slug: "cali", name: "Cali", country: "Colombia", lat: 3.4516, lon: -76.532 },
+  { slug: "barranquilla", name: "Barranquilla", country: "Colombia", lat: 10.9639, lon: -74.7964 },
+  { slug: "bucaramanga", name: "Bucaramanga", country: "Colombia", lat: 7.1193, lon: -73.1227 },
+  { slug: "manizales", name: "Manizales", country: "Colombia", lat: 5.0689, lon: -75.5174 },
+  { slug: "cartagena", name: "Cartagena", country: "Colombia", lat: 10.391, lon: -75.4794 },
+
+  // --- Perú ---
   { slug: "lima", name: "Lima", country: "Perú", lat: -12.0464, lon: -77.0428 },
   { slug: "arequipa", name: "Arequipa", country: "Perú", lat: -16.409, lon: -71.5375 },
+  { slug: "trujillo", name: "Trujillo", country: "Perú", lat: -8.1116, lon: -79.0288 },
+  { slug: "cusco", name: "Cusco", country: "Perú", lat: -13.5319, lon: -71.9675 },
+
+  // --- Chile (buena cobertura, red SINCA) ---
   { slug: "santiago", name: "Santiago", country: "Chile", lat: -33.4489, lon: -70.6693 },
   { slug: "valparaiso", name: "Valparaíso", country: "Chile", lat: -33.0472, lon: -71.6127 },
+  { slug: "concepcion", name: "Concepción", country: "Chile", lat: -36.8201, lon: -73.0444 },
+  { slug: "rancagua", name: "Rancagua", country: "Chile", lat: -34.1708, lon: -70.7444 },
+  { slug: "temuco", name: "Temuco", country: "Chile", lat: -38.7359, lon: -72.5904 },
+  { slug: "antofagasta", name: "Antofagasta", country: "Chile", lat: -23.6509, lon: -70.3975 },
+  { slug: "arica", name: "Arica", country: "Chile", lat: -18.4783, lon: -70.3126 },
+
+  // --- Ecuador (zona Quito con cobertura) ---
+  { slug: "quito", name: "Quito", country: "Ecuador", lat: -0.1807, lon: -78.4678 },
+  { slug: "guayaquil", name: "Guayaquil", country: "Ecuador", lat: -2.1894, lon: -79.8891 },
+  { slug: "cuenca", name: "Cuenca", country: "Ecuador", lat: -2.9006, lon: -79.0045 },
+
+  // --- Brasil (sobre todo estado de São Paulo) ---
+  { slug: "sao-paulo", name: "São Paulo", country: "Brasil", lat: -23.5505, lon: -46.6333 },
+  { slug: "campinas", name: "Campinas", country: "Brasil", lat: -22.9099, lon: -47.0626 },
+  { slug: "santos", name: "Santos", country: "Brasil", lat: -23.9608, lon: -46.3336 },
+  { slug: "ribeirao-preto", name: "Ribeirão Preto", country: "Brasil", lat: -21.1775, lon: -47.8103 },
+  { slug: "sorocaba", name: "Sorocaba", country: "Brasil", lat: -23.5015, lon: -47.4526 },
+  { slug: "rio-de-janeiro", name: "Río de Janeiro", country: "Brasil", lat: -22.9068, lon: -43.1729 },
+  { slug: "brasilia", name: "Brasília", country: "Brasil", lat: -15.7939, lon: -47.8828 },
+
+  // --- Argentina ---
   { slug: "buenos-aires", name: "Buenos Aires", country: "Argentina", lat: -34.6037, lon: -58.3816 },
   { slug: "cordoba", name: "Córdoba", country: "Argentina", lat: -31.4201, lon: -64.1888 },
   { slug: "rosario", name: "Rosario", country: "Argentina", lat: -32.9442, lon: -60.6505 },
-  { slug: "sao-paulo", name: "São Paulo", country: "Brasil", lat: -23.5505, lon: -46.6333 },
-  { slug: "rio-de-janeiro", name: "Río de Janeiro", country: "Brasil", lat: -22.9068, lon: -43.1729 },
-  { slug: "brasilia", name: "Brasília", country: "Brasil", lat: -15.7939, lon: -47.8828 },
-  { slug: "quito", name: "Quito", country: "Ecuador", lat: -0.1807, lon: -78.4678 },
-  { slug: "guayaquil", name: "Guayaquil", country: "Ecuador", lat: -2.1894, lon: -79.8891 },
+  { slug: "mendoza", name: "Mendoza", country: "Argentina", lat: -32.8895, lon: -68.8458 },
+
+  // --- Resto de países (cobertura hoy escasa o nula; se dejan por si aparecen estaciones) ---
   { slug: "caracas", name: "Caracas", country: "Venezuela", lat: 10.4806, lon: -66.9036 },
   { slug: "maracaibo", name: "Maracaibo", country: "Venezuela", lat: 10.6666, lon: -71.6124 },
   { slug: "la-paz", name: "La Paz", country: "Bolivia", lat: -16.5, lon: -68.1193 },

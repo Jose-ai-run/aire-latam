@@ -35,6 +35,18 @@ function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
 
+const MAX_STATION_DISTANCE_KM = 50;
+
+function haversineKm(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 async function fetchCity(city) {
   const url = `https://api.waqi.info/feed/geo:${city.lat};${city.lon}/?token=${TOKEN}`;
   const res = await fetch(url);
@@ -42,7 +54,17 @@ async function fetchCity(city) {
   if (json.status !== "ok") {
     throw new Error(`${city.name}: ${JSON.stringify(json.data)}`);
   }
-  return json.data;
+  const data = json.data;
+  const [stationLat, stationLon] = data.city?.geo || [];
+  if (typeof stationLat === "number" && typeof stationLon === "number") {
+    const distanceKm = haversineKm(city.lat, city.lon, stationLat, stationLon);
+    if (distanceKm > MAX_STATION_DISTANCE_KM) {
+      throw new Error(
+        `Sin estación cercana confiable (la más próxima, "${data.city?.name}", está a ${Math.round(distanceKm)}km — se omite para no publicar datos engañosos)`
+      );
+    }
+  }
+  return data;
 }
 
 function layout({ title, description, canonical, body }) {
