@@ -96,20 +96,30 @@ export const CITIES = [
   { slug: "porto-alegre", name: "Porto Alegre", country: "Brasil", lat: -30.0346, lon: -51.2177 },
   { slug: "belo-horizonte", name: "Belo Horizonte", country: "Brasil", lat: -19.9167, lon: -43.9345 },
 
-  // --- Argentina ---
+  // --- Argentina (estaciones reales confirmadas en aqicn.org/city/argentina) ---
   { slug: "buenos-aires", name: "Buenos Aires", country: "Argentina", lat: -34.6037, lon: -58.3816 },
   { slug: "cordoba", name: "Córdoba", country: "Argentina", lat: -31.4201, lon: -64.1888 },
   { slug: "rosario", name: "Rosario", country: "Argentina", lat: -32.9442, lon: -60.6505 },
   { slug: "mendoza", name: "Mendoza", country: "Argentina", lat: -32.8895, lon: -68.8458 },
+  { slug: "villa-constitucion", name: "Villa Constitución", country: "Argentina", lat: -33.2333, lon: -60.3333 },
+  { slug: "neuquen", name: "Neuquén", country: "Argentina", lat: -38.9516, lon: -68.0591 },
+  { slug: "santa-rosa-ar", name: "Santa Rosa", country: "Argentina", lat: -36.6167, lon: -64.2833 },
 
-  // --- Resto de países (cobertura hoy escasa o nula; se dejan por si aparecen estaciones) ---
+  // --- Resto de países: estaciones puntuales confirmadas en aqicn.org (algunas sin datos
+  // recientes al momento de agregarlas, pero se dejan porque el filtro las descarta solas
+  // si no hay estación real cerca, y podrían reactivarse) ---
   { slug: "caracas", name: "Caracas", country: "Venezuela", lat: 10.4806, lon: -66.9036 },
   { slug: "maracaibo", name: "Maracaibo", country: "Venezuela", lat: 10.6666, lon: -71.6124 },
+  { slug: "san-mateo-ve", name: "San Mateo", country: "Venezuela", lat: 10.0678, lon: -67.4989 },
+  { slug: "ciudad-guayana", name: "Ciudad Guayana", country: "Venezuela", lat: 8.3533, lon: -62.6415 },
   { slug: "la-paz", name: "La Paz", country: "Bolivia", lat: -16.5, lon: -68.1193 },
   { slug: "santa-cruz-de-la-sierra", name: "Santa Cruz de la Sierra", country: "Bolivia", lat: -17.7833, lon: -63.1821 },
   { slug: "cochabamba", name: "Cochabamba", country: "Bolivia", lat: -17.3895, lon: -66.1568 },
+  { slug: "tiquipaya", name: "Tiquipaya", country: "Bolivia", lat: -17.3333, lon: -66.2167 },
   { slug: "asuncion", name: "Asunción", country: "Paraguay", lat: -25.2637, lon: -57.5759 },
+  { slug: "ciudad-del-este", name: "Ciudad del Este", country: "Paraguay", lat: -25.5095, lon: -54.6118 },
   { slug: "montevideo", name: "Montevideo", country: "Uruguay", lat: -34.9011, lon: -56.1645 },
+  { slug: "fray-bentos", name: "Fray Bentos", country: "Uruguay", lat: -33.1372, lon: -58.2984 },
   { slug: "san-jose", name: "San José", country: "Costa Rica", lat: 9.9281, lon: -84.0907 },
   { slug: "ciudad-de-panama", name: "Ciudad de Panamá", country: "Panamá", lat: 8.9824, lon: -79.5199 },
   { slug: "san-salvador", name: "San Salvador", country: "El Salvador", lat: 13.6929, lon: -89.2182 },
