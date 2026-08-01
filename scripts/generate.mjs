@@ -254,12 +254,62 @@ async function buildCityHistorialIndex(city) {
   trackUrl(canonical);
 }
 
+function slugifyCountry(name) {
+  return name
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+}
+
+async function buildCountryPages(results) {
+  const byCountry = new Map();
+  for (const r of results) {
+    const list = byCountry.get(r.city.country) || [];
+    list.push(r);
+    byCountry.set(r.city.country, list);
+  }
+
+  for (const [country, list] of byCountry) {
+    const slug = slugifyCountry(country);
+    const dir = path.join(ROOT, "pais", slug);
+    await mkdir(dir, { recursive: true });
+    const ranked = list.slice().sort((a, b) => b.aqi - a.aqi);
+    const rows = ranked
+      .map(
+        (r) =>
+          `<tr><td><a href="${SITE_URL}/${r.city.slug}/">${r.city.name}</a></td><td>${fmt(r.aqi)}</td><td><span class="badge" style="background:${r.cat.color}">${r.cat.label}</span></td></tr>`
+      )
+      .join("\n");
+    const body = `
+<h1>Calidad del Aire en ${country} — Todas las Ciudades</h1>
+<p>Índice de calidad del aire (AQI) actualizado hoy para ${ranked.length} ciudades de ${country}.</p>
+<table>
+<thead><tr><th>Ciudad</th><th>AQI</th><th>Categoría</th></tr></thead>
+<tbody>${rows}</tbody>
+</table>
+<p><a href="${SITE_URL}/">Ver ranking completo de Latinoamérica &rarr;</a></p>`;
+    const canonical = `${SITE_URL}/pais/${slug}/`;
+    await writeFile(
+      path.join(dir, "index.html"),
+      layout({
+        title: `Calidad del Aire en ${country} Hoy — Todas las Ciudades`,
+        description: `Índice de calidad del aire (AQI) hoy en ${ranked.length} ciudades de ${country}, actualizado a diario.`,
+        canonical,
+        body,
+      })
+    );
+    trackUrl(canonical);
+  }
+}
+
 async function buildHomepage(results) {
   const ranked = results.slice().sort((a, b) => b.aqi - a.aqi);
   const rows = ranked
     .map(
       (r) =>
-        `<tr><td><a href="${SITE_URL}/${r.city.slug}/">${r.city.name}, ${r.city.country}</a></td><td>${fmt(r.aqi)}</td><td><span class="badge" style="background:${r.cat.color}">${r.cat.label}</span></td></tr>`
+        `<tr><td><a href="${SITE_URL}/${r.city.slug}/">${r.city.name}</a>, <a href="${SITE_URL}/pais/${slugifyCountry(r.city.country)}/">${r.city.country}</a></td><td>${fmt(r.aqi)}</td><td><span class="badge" style="background:${r.cat.color}">${r.cat.label}</span></td></tr>`
     )
     .join("\n");
 
@@ -345,6 +395,7 @@ async function main() {
   }
 
   await buildHomepage(results);
+  await buildCountryPages(results);
   await buildGuia();
   await buildSitemapAndRobots();
 
