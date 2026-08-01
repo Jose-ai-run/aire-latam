@@ -1,0 +1,33 @@
+name: Actualizar calidad del aire AireLatam
+
+on:
+  schedule:
+    - cron: "0 12 * * *"  # ~08:00 hora Ciudad de México / 07:00 Bogotá, todos los días
+  workflow_dispatch: {}    # permite ejecutarlo manualmente desde la pestaña Actions
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Generar sitio
+        env:
+          AQICN_TOKEN: ${{ secrets.AQICN_TOKEN }}
+          SITE_URL: ${{ vars.SITE_URL }}
+        run: node scripts/generate.mjs
+
+      - name: Commit y push si hay cambios
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs
+          git diff --cached --quiet || git commit -m "Actualización automática: calidad del aire $(date -u +%Y-%m-%d)"
+          git push
