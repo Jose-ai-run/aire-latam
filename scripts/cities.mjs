@@ -81,6 +81,10 @@ export const CITIES = [
   { slug: "pereira", name: "Pereira", country: "Colombia", lat: 4.8087, lon: -75.6906 },
   { slug: "ibague", name: "Ibagué", country: "Colombia", lat: 4.4389, lon: -75.2322 },
   { slug: "santa-marta", name: "Santa Marta", country: "Colombia", lat: 11.2408, lon: -74.199 },
+  { slug: "apartado", name: "Apartadó", country: "Colombia", lat: 7.8823, lon: -76.6247 },
+  { slug: "turbo", name: "Turbo", country: "Colombia", lat: 8.0917, lon: -76.7256 },
+  { slug: "carepa", name: "Carepa", country: "Colombia", lat: 7.7539, lon: -76.6544 },
+  { slug: "pamplona-co", name: "Pamplona", country: "Colombia", lat: 7.3733, lon: -72.6444 },
 
   // --- Perú ---
   { slug: "lima", name: "Lima", country: "Perú", lat: -12.0464, lon: -77.0428 },
@@ -168,6 +172,16 @@ export const CITIES = [
   { slug: "santo-andre", name: "Santo André", country: "Brasil", lat: -23.6639, lon: -46.5383 },
   { slug: "sao-bernardo-do-campo", name: "São Bernardo do Campo", country: "Brasil", lat: -23.6939, lon: -46.5650 },
   { slug: "taubate", name: "Taubaté", country: "Brasil", lat: -23.0264, lon: -45.5553 },
+  { slug: "novo-hamburgo", name: "Novo Hamburgo", country: "Brasil", lat: -29.6783, lon: -51.1306 },
+  { slug: "sao-leopoldo", name: "São Leopoldo", country: "Brasil", lat: -29.7604, lon: -51.1547 },
+  { slug: "sapiranga", name: "Sapiranga", country: "Brasil", lat: -29.6372, lon: -51.0069 },
+  { slug: "igrejinha", name: "Igrejinha", country: "Brasil", lat: -29.5719, lon: -50.7947 },
+  { slug: "taquara-br", name: "Taquara", country: "Brasil", lat: -29.65, lon: -50.7811 },
+  { slug: "vila-velha", name: "Vila Velha", country: "Brasil", lat: -20.3297, lon: -40.2925 },
+  { slug: "serra-br", name: "Serra", country: "Brasil", lat: -20.1289, lon: -40.3078 },
+  { slug: "guarapari", name: "Guarapari", country: "Brasil", lat: -20.6667, lon: -40.5033 },
+  { slug: "vitoria-br", name: "Vitória", country: "Brasil", lat: -20.3222, lon: -40.3381 },
+  { slug: "londrina", name: "Londrina", country: "Brasil", lat: -23.3103, lon: -51.1628 },
 
   // --- Argentina (estaciones reales confirmadas en aqicn.org/city/argentina) ---
   { slug: "buenos-aires", name: "Buenos Aires", country: "Argentina", lat: -34.6037, lon: -58.3816 },
