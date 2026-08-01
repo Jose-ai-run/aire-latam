@@ -22,6 +22,8 @@ jobs:
         env:
           AQICN_TOKEN: ${{ secrets.AQICN_TOKEN }}
           SITE_URL: ${{ vars.SITE_URL }}
+          ADSENSE_CLIENT: ${{ vars.ADSENSE_CLIENT }}
+          AMAZON_TAG: ${{ vars.AMAZON_TAG }}
         run: node scripts/generate.mjs
 
       - name: Commit y push si hay cambios

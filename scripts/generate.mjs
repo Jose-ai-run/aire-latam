@@ -9,6 +9,16 @@ const TOKEN = process.env.AQICN_TOKEN;
 const SITE_URL = process.env.SITE_URL || "https://TU-USUARIO.github.io/aire-latam";
 const ROOT = new URL("../docs/", import.meta.url).pathname.replace(/^\/([A-Za-z]):/, "$1:");
 
+// Se activan solos apenas existan estas variables en GitHub (Settings > Actions > Variables).
+// Mientras no existan, el sitio funciona igual mostrando el sitio ya como hoy.
+const ADSENSE_CLIENT = process.env.ADSENSE_CLIENT || ""; // ej: ca-pub-1234567890123456
+const AMAZON_TAG = process.env.AMAZON_TAG || ""; // ej: airelatam-20
+
+const sitemapUrls = [];
+function trackUrl(loc) {
+  sitemapUrls.push(loc);
+}
+
 if (!TOKEN) {
   console.error("Falta la variable de entorno AQICN_TOKEN. Consigue un token gratis en https://aqicn.org/data-platform/token/");
   process.exit(1);
@@ -67,7 +77,40 @@ async function fetchCity(city) {
   return data;
 }
 
-function layout({ title, description, canonical, body }) {
+function adsenseHead() {
+  if (!ADSENSE_CLIENT) return "";
+  return `<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_CLIENT}" crossorigin="anonymous"></script>`;
+}
+
+function adSlot() {
+  if (!ADSENSE_CLIENT) return "";
+  return `<ins class="adsbygoogle" style="display:block;margin:1.5rem 0" data-ad-client="${ADSENSE_CLIENT}" data-ad-format="auto" data-full-width-responsive="true"></ins><script>(adsbygoogle = window.adsbygoogle || []).push({});</script>`;
+}
+
+function affiliateBox(cat) {
+  if (!AMAZON_TAG) return "";
+  const urgent = cat && cat.max <= 100 ? false : true;
+  const heading = urgent ? "El aire no está del todo limpio hoy — protégete" : "Recomendados para monitorear el aire en casa";
+  const items = urgent
+    ? [
+        ["Mascarillas N95/KN95", "mascarillas+n95"],
+        ["Purificador de aire para interiores", "purificador+de+aire"],
+      ]
+    : [
+        ["Monitor de calidad del aire para el hogar", "monitor+calidad+del+aire"],
+        ["Purificador de aire para interiores", "purificador+de+aire"],
+      ];
+  const links = items
+    .map(([label, kw]) => `<li><a href="https://www.amazon.com/s?k=${kw}&tag=${AMAZON_TAG}" target="_blank" rel="noopener sponsored">${label}</a></li>`)
+    .join("\n");
+  return `<aside style="margin:2rem 0;padding:1rem;border:1px solid #eee;border-radius:8px;background:#fafafa">
+<p style="margin:0 0 .5rem;font-weight:600">${heading}</p>
+<ul style="margin:0">${links}</ul>
+<p class="muted" style="margin:.5rem 0 0">Enlaces de afiliado: podemos ganar una comisión sin costo extra para ti.</p>
+</aside>`;
+}
+
+function layout({ title, description, canonical, body, ogType = "website" }) {
   return `<!doctype html>
 <html lang="es">
 <head>
@@ -76,6 +119,13 @@ function layout({ title, description, canonical, body }) {
 <title>${title}</title>
 <meta name="description" content="${description}">
 <link rel="canonical" href="${canonical}">
+<meta property="og:type" content="${ogType}">
+<meta property="og:title" content="${title}">
+<meta property="og:description" content="${description}">
+<meta property="og:url" content="${canonical}">
+<meta property="og:site_name" content="AireLatam">
+<meta name="twitter:card" content="summary">
+${adsenseHead()}
 <style>
   body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;max-width:820px;margin:0 auto;padding:24px;line-height:1.55;color:#1a1a1a}
   h1{font-size:1.5rem} h2{font-size:1.15rem;margin-top:2rem}
@@ -128,17 +178,21 @@ async function buildCityPage(city, data) {
 </table>
 <h2>Histórico</h2>
 <p><a href="${SITE_URL}/${city.slug}/historial/">Ver registro diario de calidad del aire en ${city.name} &rarr;</a></p>
-<p class="muted"><a href="${SITE_URL}/guia/">¿Qué significa el índice AQI y cómo protegerte?</a></p>`;
+<p class="muted"><a href="${SITE_URL}/guia/">¿Qué significa el índice AQI y cómo protegerte?</a></p>
+${affiliateBox(cat)}
+${adSlot()}`;
 
+  const canonical = `${SITE_URL}/${city.slug}/`;
   await writeFile(
     path.join(dir, "index.html"),
     layout({
       title: `Calidad del Aire en ${city.name} Hoy — Índice AQI en Vivo`,
       description: `Índice de calidad del aire (AQI) en ${city.name}, ${city.country}, actualizado hoy: ${fmt(data.aqi)} (${cat.label}). Desglose de contaminantes e histórico diario.`,
-      canonical: `${SITE_URL}/${city.slug}/`,
+      canonical,
       body,
     })
   );
+  trackUrl(canonical);
 
   return cat;
 }
@@ -153,15 +207,17 @@ async function buildCityHistorialDay(city, data, cat) {
 <p>${cat.desc}</p>
 <p><a href="${SITE_URL}/${city.slug}/">Ver calidad del aire de hoy en ${city.name} &rarr;</a></p>
 <p><a href="${SITE_URL}/${city.slug}/historial/">Ver todo el histórico de ${city.name} &rarr;</a></p>`;
+  const canonical = `${SITE_URL}/${city.slug}/historial/${date}/`;
   await writeFile(
     path.join(dir, "index.html"),
     layout({
       title: `Calidad del Aire en ${city.name} el ${date} — AQI ${fmt(data.aqi)}`,
       description: `Registro histórico de calidad del aire en ${city.name} el ${date}: índice AQI ${fmt(data.aqi)} (${cat.label}).`,
-      canonical: `${SITE_URL}/${city.slug}/historial/${date}/`,
+      canonical,
       body,
     })
   );
+  trackUrl(canonical);
 }
 
 async function buildCityHistorialIndex(city) {
@@ -185,15 +241,17 @@ async function buildCityHistorialIndex(city) {
 <p>Registro día por día del índice AQI en ${city.name}, ${city.country}.</p>
 <ul>${items}</ul>
 <p><a href="${SITE_URL}/${city.slug}/">Ver cotización de hoy &rarr;</a></p>`;
+  const canonical = `${SITE_URL}/${city.slug}/historial/`;
   await writeFile(
     path.join(dir, "index.html"),
     layout({
       title: `Histórico Calidad del Aire en ${city.name} — Todas las Fechas`,
       description: `Archivo histórico día por día del índice de calidad del aire (AQI) en ${city.name}.`,
-      canonical: `${SITE_URL}/${city.slug}/historial/`,
+      canonical,
       body,
     })
   );
+  trackUrl(canonical);
 }
 
 async function buildHomepage(results) {
@@ -213,17 +271,20 @@ async function buildHomepage(results) {
 <thead><tr><th>Ciudad</th><th>AQI</th><th>Categoría</th></tr></thead>
 <tbody>${rows}</tbody>
 </table>
-<p class="muted">Actualizado: ${new Date().toISOString()}</p>`;
+<p class="muted">Actualizado: ${new Date().toISOString()}</p>
+${adSlot()}`;
 
+  const canonical = `${SITE_URL}/`;
   await writeFile(
     path.join(ROOT, "index.html"),
     layout({
       title: "AireLatam — Calidad del Aire Hoy en Ciudades de Latinoamérica",
       description: `Índice de calidad del aire (AQI) en tiempo real para ${results.length} ciudades de Latinoamérica: México, Colombia, Perú, Chile, Argentina, Brasil y más.`,
-      canonical: `${SITE_URL}/`,
+      canonical,
       body,
     })
   );
+  trackUrl(canonical);
 }
 
 async function buildGuia() {
@@ -252,15 +313,17 @@ async function buildGuia() {
 </ul>
 <p><a href="${SITE_URL}/">Ver calidad del aire hoy en tu ciudad &rarr;</a></p>`;
 
+  const canonical = `${SITE_URL}/guia/`;
   await writeFile(
     path.join(dir, "index.html"),
     layout({
       title: "¿Qué es el Índice de Calidad del Aire (AQI)? Guía Completa",
       description: "Guía completa sobre el índice de calidad del aire (AQI): qué significan sus categorías y cómo protegerte de la contaminación.",
-      canonical: `${SITE_URL}/guia/`,
+      canonical,
       body,
     })
   );
+  trackUrl(canonical);
 }
 
 async function main() {
@@ -283,8 +346,28 @@ async function main() {
 
   await buildHomepage(results);
   await buildGuia();
+  await buildSitemapAndRobots();
 
   console.log(`Sitio generado. ${results.length}/${CITIES.length} ciudades actualizadas correctamente.`);
+}
+
+async function buildSitemapAndRobots() {
+  const today = todayISO();
+  const urls = sitemapUrls
+    .map((loc) => `<url><loc>${loc}</loc><lastmod>${today}</lastmod></url>`)
+    .join("\n");
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${urls}
+</urlset>`;
+  await writeFile(path.join(ROOT, "sitemap.xml"), xml);
+
+  const robots = `User-agent: *
+Allow: /
+
+Sitemap: ${SITE_URL}/sitemap.xml
+`;
+  await writeFile(path.join(ROOT, "robots.txt"), robots);
 }
 
 main().catch((err) => {
