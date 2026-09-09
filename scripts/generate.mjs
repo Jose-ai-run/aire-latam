@@ -110,6 +110,50 @@ function affiliateBox(cat) {
 </aside>`;
 }
 
+// Insignia SVG embebible (estilo shields.io) — cualquier blog/medio local
+// puede pegarla en su web con un <img>, y el enlace de vuelta genera
+// backlinks reales y gratis. Crece sola: se regenera cada día con el dato real.
+function badgeSvg(city, aqi, cat) {
+  const label = "calidad del aire";
+  const value = `${fmt(aqi)} ${cat.label}`;
+  const labelWidth = 11 * label.length + 20;
+  const valueWidth = 7 * value.length + 24;
+  const totalWidth = labelWidth + valueWidth;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${totalWidth}" height="20" role="img" aria-label="${label}: ${value}">
+<linearGradient id="s" x2="0" y2="100%"><stop offset="0" stop-color="#bbb" stop-opacity=".1"/><stop offset="1" stop-opacity=".1"/></linearGradient>
+<clipPath id="r"><rect width="${totalWidth}" height="20" rx="3" fill="#fff"/></clipPath>
+<g clip-path="url(#r)">
+<rect width="${labelWidth}" height="20" fill="#555"/>
+<rect x="${labelWidth}" width="${valueWidth}" height="20" fill="${cat.color}"/>
+<rect width="${totalWidth}" height="20" fill="url(#s)"/>
+</g>
+<g fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" font-size="11">
+<text x="${labelWidth / 2}" y="14">${label} ${city.name}</text>
+<text x="${labelWidth + valueWidth / 2}" y="14">${value}</text>
+</g>
+</svg>`;
+}
+
+function shareButtons(city, aqi, cat, canonical) {
+  const msg = `Calidad del aire en ${city.name} ahora mismo: ${fmt(aqi)} (${cat.label}). Mira el detalle en tiempo real:`;
+  const waText = encodeURIComponent(`${msg} ${canonical}`);
+  const xText = encodeURIComponent(msg);
+  return `<div style="display:flex;gap:8px;margin:1rem 0">
+<a href="https://wa.me/?text=${waText}" target="_blank" rel="noopener" style="background:#25D366;color:#fff;padding:8px 14px;border-radius:6px;font-size:.85rem;font-weight:600">Compartir por WhatsApp</a>
+<a href="https://twitter.com/intent/tweet?text=${xText}&url=${encodeURIComponent(canonical)}" target="_blank" rel="noopener" style="background:#000;color:#fff;padding:8px 14px;border-radius:6px;font-size:.85rem;font-weight:600">Compartir en X</a>
+</div>`;
+}
+
+function embedSnippet(city, canonical) {
+  const badgeUrl = `${canonical}badge.svg`;
+  const escaped = `&lt;a href="${canonical}"&gt;&lt;img src="${badgeUrl}" alt="Calidad del aire en ${city.name}"&gt;&lt;/a&gt;`;
+  return `<details style="margin:1.5rem 0">
+<summary style="cursor:pointer;font-weight:600;font-size:.9rem">Insertar esta insignia en tu web &darr;</summary>
+<p class="muted" style="margin:.5rem 0"><img src="${badgeUrl}" alt="Calidad del aire en ${city.name}"></p>
+<pre style="background:#f5f5f5;padding:10px;border-radius:6px;font-size:.8rem;overflow-x:auto">${escaped}</pre>
+</details>`;
+}
+
 function breadcrumbJsonLd(items) {
   if (!items || items.length === 0) return "";
   const itemListElement = items.map((it, i) => ({
@@ -158,7 +202,7 @@ ${adsenseHead()}
 </style>
 </head>
 <body>
-<nav><a href="${SITE_URL}/">Inicio</a> &middot; <a href="${SITE_URL}/guia/">Guía del índice AQI</a> &middot; <a href="${SITE_URL}/acerca/">Acerca de</a></nav>
+<nav><a href="${SITE_URL}/">Inicio</a> &middot; <a href="${SITE_URL}/alertas/">Alertas de hoy</a> &middot; <a href="${SITE_URL}/guia/">Guía del índice AQI</a> &middot; <a href="${SITE_URL}/acerca/">Acerca de</a></nav>
 ${body}
 <footer>Datos: <a href="https://aqicn.org" target="_blank" rel="noopener">World Air Quality Index Project (AQICN)</a>, agregados de estaciones oficiales de monitoreo. Este sitio es informativo y no reemplaza fuentes oficiales de salud pública. &middot; <a href="${SITE_URL}/privacidad/">Privacidad</a> &middot; <a href="${SITE_URL}/acerca/">Acerca de</a></footer>
 </body>
@@ -243,8 +287,12 @@ ${trendSection}
 <h2>Histórico</h2>
 <p><a href="${SITE_URL}/${city.slug}/historial/">Ver registro diario de calidad del aire en ${city.name} &rarr;</a></p>
 <p class="muted"><a href="${SITE_URL}/guia/">¿Qué significa el índice AQI y cómo protegerte?</a></p>
+${shareButtons(city, data.aqi, cat, `${SITE_URL}/${city.slug}/`)}
+${embedSnippet(city, `${SITE_URL}/${city.slug}/`)}
 ${affiliateBox(cat)}
 ${adSlot()}`;
+
+  await writeFile(path.join(dir, "badge.svg"), badgeSvg(city, data.aqi, cat));
 
   const canonical = `${SITE_URL}/${city.slug}/`;
   const countrySlug = slugifyCountry(city.country);
@@ -412,6 +460,48 @@ ${adSlot()}`;
   trackUrl(canonical);
 }
 
+// Página de "noticia" que cambia sola cada día — además de contenido fresco
+// para Google, es el disparador para saber CUÁNDO vale la pena compartir
+// una ciudad puntual en redes (cuando de verdad hay una alerta real).
+async function buildAlertas(results) {
+  const dir = path.join(ROOT, "alertas");
+  await mkdir(dir, { recursive: true });
+  const malas = results.filter((r) => r.aqi > 100).sort((a, b) => b.aqi - a.aqi);
+  const rows = malas
+    .map(
+      (r) =>
+        `<tr><td><a href="${SITE_URL}/${r.city.slug}/">${r.city.name}, ${r.city.country}</a></td><td>${fmt(r.aqi)}</td><td><span class="badge" style="background:${r.cat.color}">${r.cat.label}</span></td></tr>`
+    )
+    .join("\n");
+  const body = `
+<h1>Alertas de Calidad del Aire Hoy en Latinoamérica</h1>
+<p class="muted">Actualizado: ${todayISO()}</p>
+<p>${malas.length > 0 ? `${malas.length} ciudad${malas.length !== 1 ? "es" : ""} con calidad del aire dañina o peor hoy (AQI mayor a 100).` : "Ninguna ciudad monitoreada supera hoy el umbral de alerta (AQI 100) — buen día para respirar."}</p>
+${
+  malas.length > 0
+    ? `<table><thead><tr><th>Ciudad</th><th>AQI</th><th>Categoría</th></tr></thead><tbody>${rows}</tbody></table>`
+    : ""
+}
+<p class="muted"><a href="${SITE_URL}/guia/">¿Qué significa el índice AQI y cómo protegerte?</a></p>
+<p><a href="${SITE_URL}/">Ver ranking completo de Latinoamérica &rarr;</a></p>`;
+  const canonical = `${SITE_URL}/alertas/`;
+  await writeFile(
+    path.join(dir, "index.html"),
+    layout({
+      title: `Alertas de Calidad del Aire Hoy — ${malas.length} Ciudad${malas.length !== 1 ? "es" : ""} Afectada${malas.length !== 1 ? "s" : ""} en Latinoamérica`,
+      description: `Ciudades de Latinoamérica con calidad del aire dañina o peor hoy, actualizado a diario.`,
+      canonical,
+      body,
+      breadcrumbs: [
+        { name: "Inicio", url: `${SITE_URL}/` },
+        { name: "Alertas", url: canonical },
+      ],
+    })
+  );
+  trackUrl(canonical);
+  return malas;
+}
+
 async function buildPrivacidad() {
   const dir = path.join(ROOT, "privacidad");
   await mkdir(dir, { recursive: true });
@@ -526,6 +616,7 @@ async function main() {
 
   await buildHomepage(results);
   await buildCountryPages(results);
+  await buildAlertas(results);
   await buildGuia();
   await buildPrivacidad();
   await buildAcerca();
