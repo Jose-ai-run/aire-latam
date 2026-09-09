@@ -141,9 +141,9 @@ ${adsenseHead()}
 </style>
 </head>
 <body>
-<nav><a href="${SITE_URL}/">Inicio</a> &middot; <a href="${SITE_URL}/guia/">Guía del índice AQI</a></nav>
+<nav><a href="${SITE_URL}/">Inicio</a> &middot; <a href="${SITE_URL}/guia/">Guía del índice AQI</a> &middot; <a href="${SITE_URL}/acerca/">Acerca de</a></nav>
 ${body}
-<footer>Datos: <a href="https://aqicn.org" target="_blank" rel="noopener">World Air Quality Index Project (AQICN)</a>, agregados de estaciones oficiales de monitoreo. Este sitio es informativo y no reemplaza fuentes oficiales de salud pública.</footer>
+<footer>Datos: <a href="https://aqicn.org" target="_blank" rel="noopener">World Air Quality Index Project (AQICN)</a>, agregados de estaciones oficiales de monitoreo. Este sitio es informativo y no reemplaza fuentes oficiales de salud pública. &middot; <a href="${SITE_URL}/privacidad/">Privacidad</a> &middot; <a href="${SITE_URL}/acerca/">Acerca de</a></footer>
 </body>
 </html>`;
 }
@@ -337,6 +337,61 @@ ${adSlot()}`;
   trackUrl(canonical);
 }
 
+async function buildPrivacidad() {
+  const dir = path.join(ROOT, "privacidad");
+  await mkdir(dir, { recursive: true });
+  const body = `
+<h1>Política de Privacidad</h1>
+<p class="muted">Última actualización: ${todayISO()}</p>
+<p>AireLatam es un sitio informativo. No pedimos registro ni recolectamos datos personales directamente — no hay formularios, cuentas ni cookies propias del sitio.</p>
+<h2>Publicidad y cookies de terceros</h2>
+<p>Este sitio puede mostrar anuncios a través de <strong>Google AdSense</strong>. Google y sus socios publicitarios usan cookies para mostrar anuncios según tus visitas a este y otros sitios. Puedes revisar y ajustar cómo Google personaliza los anuncios que ves en <a href="https://adssettings.google.com/" target="_blank" rel="noopener">Configuración de anuncios de Google</a>, y conocer más en la <a href="https://policies.google.com/technologies/partner-sites" target="_blank" rel="noopener">política de socios publicitarios de Google</a>.</p>
+<h2>Enlaces de afiliado</h2>
+<p>Algunas páginas incluyen enlaces de afiliado (ej. Amazon). Si compras a través de ellos, podemos recibir una comisión, sin costo extra para ti.</p>
+<h2>Analítica</h2>
+<p>Podemos usar Google Search Console para entender qué páginas se buscan más — esto no identifica a usuarios individuales.</p>
+<h2>Datos de calidad del aire</h2>
+<p>Los datos mostrados provienen del <a href="https://aqicn.org" target="_blank" rel="noopener">World Air Quality Index Project (AQICN)</a>, agregando estaciones oficiales de monitoreo. No garantizamos precisión absoluta ni sustituimos fuentes oficiales de salud pública.</p>
+<h2>Contacto</h2>
+<p>¿Dudas sobre esta política? <a href="https://github.com/Jose-ai-run/aire-latam/issues" target="_blank" rel="noopener">Abre un issue en GitHub</a>.</p>`;
+  const canonical = `${SITE_URL}/privacidad/`;
+  await writeFile(
+    path.join(dir, "index.html"),
+    layout({
+      title: "Política de Privacidad — AireLatam",
+      description: "Política de privacidad de AireLatam: qué datos recolectamos, cookies de publicidad (Google AdSense) y enlaces de afiliado.",
+      canonical,
+      body,
+    })
+  );
+  trackUrl(canonical);
+}
+
+async function buildAcerca() {
+  const dir = path.join(ROOT, "acerca");
+  await mkdir(dir, { recursive: true });
+  const body = `
+<h1>Acerca de AireLatam</h1>
+<p>AireLatam publica el índice de calidad del aire (AQI) de ciudades de Latinoamérica, actualizado automáticamente todos los días a partir de estaciones oficiales de monitoreo agregadas por el <a href="https://aqicn.org" target="_blank" rel="noopener">World Air Quality Index Project (AQICN)</a>.</p>
+<p>El objetivo es simple: que cualquiera pueda revisar en segundos si el aire de su ciudad está bien hoy, sin depender de apps ni registros.</p>
+<h2>¿Cómo se generan los datos?</h2>
+<p>Un proceso automático consulta la estación de monitoreo más cercana a cada ciudad (dentro de un radio confiable) una vez al día, calcula la categoría según la escala de la EPA de EE.UU., y publica la página actualizada. Si no hay una estación confiable cerca de una ciudad, esa ciudad se omite ese día para no publicar datos engañosos.</p>
+<h2>Contacto</h2>
+<p><a href="https://github.com/Jose-ai-run/aire-latam/issues" target="_blank" rel="noopener">Abre un issue en GitHub</a> para preguntas, correcciones o sugerencias de nuevas ciudades.</p>
+<p><a href="${SITE_URL}/privacidad/">Política de Privacidad</a></p>`;
+  const canonical = `${SITE_URL}/acerca/`;
+  await writeFile(
+    path.join(dir, "index.html"),
+    layout({
+      title: "Acerca de AireLatam",
+      description: "Qué es AireLatam, de dónde vienen los datos de calidad del aire y cómo se generan automáticamente.",
+      canonical,
+      body,
+    })
+  );
+  trackUrl(canonical);
+}
+
 async function buildGuia() {
   const dir = path.join(ROOT, "guia");
   await mkdir(dir, { recursive: true });
@@ -397,7 +452,10 @@ async function main() {
   await buildHomepage(results);
   await buildCountryPages(results);
   await buildGuia();
+  await buildPrivacidad();
+  await buildAcerca();
   await buildSitemapAndRobots();
+  await buildAdsTxt();
 
   console.log(`Sitio generado. ${results.length}/${CITIES.length} ciudades actualizadas correctamente.`);
 }
@@ -419,6 +477,14 @@ Allow: /
 Sitemap: ${SITE_URL}/sitemap.xml
 `;
   await writeFile(path.join(ROOT, "robots.txt"), robots);
+}
+
+// Genera ads.txt automáticamente apenas exista ADSENSE_CLIENT — Google lo exige
+// para servir anuncios correctamente (evita "no ads.txt file found").
+async function buildAdsTxt() {
+  if (!ADSENSE_CLIENT) return;
+  const pubId = ADSENSE_CLIENT.replace(/^ca-/, ""); // "ca-pub-123..." -> "pub-123..."
+  await writeFile(path.join(ROOT, "ads.txt"), `google.com, ${pubId}, DIRECT, f08c47fec0942fa0\n`);
 }
 
 main().catch((err) => {
