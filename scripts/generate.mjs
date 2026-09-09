@@ -1,7 +1,7 @@
 // AireLatam — genera el sitio estático en /docs a partir del API de AQICN (waqi.info).
 // Se ejecuta a diario vía GitHub Actions. Requiere AQICN_TOKEN (gratuito, ver README).
 
-import { mkdir, writeFile, readdir } from "node:fs/promises";
+import { mkdir, writeFile, readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { CITIES } from "./cities.mjs";
 
@@ -110,7 +110,22 @@ function affiliateBox(cat) {
 </aside>`;
 }
 
-function layout({ title, description, canonical, body, ogType = "website" }) {
+function breadcrumbJsonLd(items) {
+  if (!items || items.length === 0) return "";
+  const itemListElement = items.map((it, i) => ({
+    "@type": "ListItem",
+    position: i + 1,
+    name: it.name,
+    item: it.url,
+  }));
+  return `<script type="application/ld+json">${JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement,
+  })}</script>`;
+}
+
+function layout({ title, description, canonical, body, ogType = "website", noindex = false, breadcrumbs = null }) {
   return `<!doctype html>
 <html lang="es">
 <head>
@@ -119,12 +134,14 @@ function layout({ title, description, canonical, body, ogType = "website" }) {
 <title>${title}</title>
 <meta name="description" content="${description}">
 <link rel="canonical" href="${canonical}">
+${noindex ? '<meta name="robots" content="noindex,follow">' : ""}
 <meta property="og:type" content="${ogType}">
 <meta property="og:title" content="${title}">
 <meta property="og:description" content="${description}">
 <meta property="og:url" content="${canonical}">
 <meta property="og:site_name" content="AireLatam">
 <meta name="twitter:card" content="summary">
+${breadcrumbJsonLd(breadcrumbs)}
 ${adsenseHead()}
 <style>
   body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;max-width:820px;margin:0 auto;padding:24px;line-height:1.55;color:#1a1a1a}
@@ -148,10 +165,56 @@ ${body}
 </html>`;
 }
 
+// Histórico real en JSON (no solo páginas HTML) — permite calcular promedios
+// reales por ciudad en vez de solo mostrar el dato de hoy. Reducimos así la
+// "pSEO delgada": cada página de ciudad gana contenido único y verificable.
+async function readHistorialJson(city) {
+  const file = path.join(ROOT, city.slug, "historial.json");
+  try {
+    return JSON.parse(await readFile(file, "utf8"));
+  } catch {
+    return [];
+  }
+}
+
+async function appendHistorialJson(city, date, aqi) {
+  const dir = path.join(ROOT, city.slug);
+  await mkdir(dir, { recursive: true });
+  const entries = (await readHistorialJson(city)).filter((e) => e.date !== date);
+  entries.push({ date, aqi });
+  entries.sort((a, b) => (a.date < b.date ? -1 : 1));
+  const trimmed = entries.slice(-90); // 90 días es de sobra para el promedio de 7
+  await writeFile(path.join(dir, "historial.json"), JSON.stringify(trimmed));
+  return trimmed;
+}
+
+function avgLastNDays(entries, n) {
+  const last = entries.slice(-n);
+  if (last.length === 0) return null;
+  return last.reduce((s, e) => s + e.aqi, 0) / last.length;
+}
+
 async function buildCityPage(city, data) {
   const cat = categoryFor(data.aqi);
   const dir = path.join(ROOT, city.slug);
   await mkdir(dir, { recursive: true });
+
+  const history = await appendHistorialJson(city, todayISO(), data.aqi);
+  const avg7 = avgLastNDays(history, 7);
+  const avg30 = avgLastNDays(history, 30);
+  const trendSection =
+    history.length >= 2
+      ? `<h2>Tendencia reciente</h2>
+<p>Promedio de los últimos 7 días: <strong>${fmt(avg7)}</strong>${
+          history.length >= 14 ? ` · últimos 30 días: <strong>${fmt(avg30)}</strong>` : ""
+        }${
+          avg7 !== null && data.aqi > avg7 + 15
+            ? " — hoy está bastante peor que el promedio reciente."
+            : avg7 !== null && data.aqi < avg7 - 15
+              ? " — hoy está mejor que el promedio reciente."
+              : ""
+        }</p>`
+      : "";
 
   const iaqi = data.iaqi || {};
   const pollutantRows = Object.entries({
@@ -176,6 +239,7 @@ async function buildCityPage(city, data) {
 <thead><tr><th>Contaminante</th><th>Índice</th></tr></thead>
 <tbody>${pollutantRows || "<tr><td colspan=2>Sin desglose disponible en este momento</td></tr>"}</tbody>
 </table>
+${trendSection}
 <h2>Histórico</h2>
 <p><a href="${SITE_URL}/${city.slug}/historial/">Ver registro diario de calidad del aire en ${city.name} &rarr;</a></p>
 <p class="muted"><a href="${SITE_URL}/guia/">¿Qué significa el índice AQI y cómo protegerte?</a></p>
@@ -183,6 +247,7 @@ ${affiliateBox(cat)}
 ${adSlot()}`;
 
   const canonical = `${SITE_URL}/${city.slug}/`;
+  const countrySlug = slugifyCountry(city.country);
   await writeFile(
     path.join(dir, "index.html"),
     layout({
@@ -190,6 +255,11 @@ ${adSlot()}`;
       description: `Índice de calidad del aire (AQI) en ${city.name}, ${city.country}, actualizado hoy: ${fmt(data.aqi)} (${cat.label}). Desglose de contaminantes e histórico diario.`,
       canonical,
       body,
+      breadcrumbs: [
+        { name: "Inicio", url: `${SITE_URL}/` },
+        { name: city.country, url: `${SITE_URL}/pais/${countrySlug}/` },
+        { name: city.name, url: canonical },
+      ],
     })
   );
   trackUrl(canonical);
@@ -215,40 +285,45 @@ async function buildCityHistorialDay(city, data, cat) {
       description: `Registro histórico de calidad del aire en ${city.name} el ${date}: índice AQI ${fmt(data.aqi)} (${cat.label}).`,
       canonical,
       body,
+      noindex: true, // evita inflar el sitio con miles de páginas casi idénticas (ver README)
     })
   );
-  trackUrl(canonical);
+  // No se agrega al sitemap: es noindex, no tiene sentido pedirle a Google que la rastree.
 }
 
 async function buildCityHistorialIndex(city) {
   const dir = path.join(ROOT, city.slug, "historial");
   await mkdir(dir, { recursive: true });
-  let entries = [];
-  try {
-    entries = (await readdir(dir, { withFileTypes: true }))
-      .filter((e) => e.isDirectory())
-      .map((e) => e.name)
-      .sort()
-      .reverse();
-  } catch {
-    entries = [];
-  }
-  const items = entries
-    .map((date) => `<li><a href="${SITE_URL}/${city.slug}/historial/${date}/">${date}</a></li>`)
+  const history = (await readHistorialJson(city)).slice().reverse();
+  const rows = history
+    .map((e) => {
+      const c = categoryFor(e.aqi);
+      return `<tr><td><a href="${SITE_URL}/${city.slug}/historial/${e.date}/">${e.date}</a></td><td>${fmt(e.aqi)}</td><td><span class="badge" style="background:${c.color}">${c.label}</span></td></tr>`;
+    })
     .join("\n");
+  const avg7 = avgLastNDays(history.slice().reverse(), 7);
   const body = `
 <h1>Histórico de Calidad del Aire en ${city.name}</h1>
-<p>Registro día por día del índice AQI en ${city.name}, ${city.country}.</p>
-<ul>${items}</ul>
+<p>Registro día por día del índice AQI en ${city.name}, ${city.country}${avg7 !== null ? ` · promedio últimos 7 días: <strong>${fmt(avg7)}</strong>` : ""}.</p>
+<table>
+<thead><tr><th>Fecha</th><th>AQI</th><th>Categoría</th></tr></thead>
+<tbody>${rows || "<tr><td colspan=3>Aún sin registros — vuelve mañana</td></tr>"}</tbody>
+</table>
 <p><a href="${SITE_URL}/${city.slug}/">Ver cotización de hoy &rarr;</a></p>`;
   const canonical = `${SITE_URL}/${city.slug}/historial/`;
   await writeFile(
     path.join(dir, "index.html"),
     layout({
       title: `Histórico Calidad del Aire en ${city.name} — Todas las Fechas`,
-      description: `Archivo histórico día por día del índice de calidad del aire (AQI) en ${city.name}.`,
+      description: `Archivo histórico día por día del índice de calidad del aire (AQI) en ${city.name}, con promedios reales.`,
       canonical,
       body,
+      breadcrumbs: [
+        { name: "Inicio", url: `${SITE_URL}/` },
+        { name: city.country, url: `${SITE_URL}/pais/${slugifyCountry(city.country)}/` },
+        { name: city.name, url: `${SITE_URL}/${city.slug}/` },
+        { name: "Histórico", url: canonical },
+      ],
     })
   );
   trackUrl(canonical);
